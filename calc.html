@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University GPA & Percentage Calculator</title>
+    <!-- Use the Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Include Tailwind CSS via CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Apply the Inter font globally */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for focus state */
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* blue-500 with opacity */
+        }
+        .grade-input::placeholder {
+            color: #d1d5db; /* gray-300 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl mx-auto">
+        <!-- Main heading for the calculator -->
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Percentage & GPA Calculator</h1>
+        <p class="text-gray-600 mb-6 text-center">
+            Enter your subject percentages and credit hours below to calculate your average.
+        </p>
+
+        <!-- Container for all subject rows -->
+        <div id="subjects-container" class="space-y-4">
+            <!-- This is a single subject row template. It will be cloned via JavaScript. -->
+            <div class="subject-row flex flex-col md:flex-row items-center gap-4 bg-gray-50 p-4 rounded-xl shadow-inner border border-gray-200">
+                <!-- Input field for the subject name -->
+                <input type="text" placeholder="Subject Name" class="subject-name w-full md:w-1/3 px-4 py-2 rounded-lg bg-white border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-colors duration-200">
+                
+                <!-- Input field for the percentage -->
+                <input type="number" placeholder="Percentage (50-100)" class="percentage-input w-full md:w-1/4 px-4 py-2 rounded-lg bg-white border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-colors duration-200" min="50" max="100" step="0.01">
+                
+                <!-- Input field for the credit hours (CHR) -->
+                <input type="number" placeholder="CHR" class="chr-input w-full md:w-1/4 px-4 py-2 rounded-lg bg-white border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-colors duration-200" min="1" step="1">
+                
+                <!-- Button to remove this subject row -->
+                <button onclick="removeSubjectRow(this)" class="remove-btn w-full md:w-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200">
+                    Remove
+                </button>
+            </div>
+        </div>
+
+        <!-- Buttons for adding a subject and calculating GPA -->
+        <div class="flex flex-col md:flex-row gap-4 mt-6">
+            <!-- Button to add a new subject row -->
+            <button id="add-subject-btn" class="flex-1 px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition-colors duration-200">
+                Add Subject
+            </button>
+            <!-- Button to trigger the calculation -->
+            <button id="calculate-btn" class="flex-1 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition-colors duration-200">
+                Calculate Average
+            </button>
+        </div>
+
+        <!-- Display area for the calculated results -->
+        <div id="result-area" class="mt-6 text-center p-6 bg-blue-100 rounded-lg hidden">
+            <h2 class="text-xl font-bold text-gray-800">Your Results:</h2>
+            <!-- Display for the average percentage -->
+            <p class="text-2xl font-bold text-gray-600 mt-2">Average Percentage:</p>
+            <p id="percentage-result" class="text-4xl font-extrabold text-blue-700 mt-1">0.00%</p>
+            <!-- Display for the converted GPA -->
+            <p class="text-2xl font-bold text-gray-600 mt-4">Equivalent GPA:</p>
+            <p id="gpa-result" class="text-4xl font-extrabold text-blue-700 mt-1">0.00</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Get references to key elements in the DOM
+        const subjectsContainer = document.getElementById('subjects-container');
+        const addSubjectBtn = document.getElementById('add-subject-btn');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const resultArea = document.getElementById('result-area');
+        const percentageResult = document.getElementById('percentage-result');
+        const gpaResult = document.getElementById('gpa-result');
+
+        /**
+         * Clones the first subject row and adds it to the container.
+         * This allows for dynamic addition of subjects.
+         */
+        function addSubjectRow() {
+            // Get the template row to clone
+            const templateRow = document.querySelector('.subject-row');
+            // Check if a template row exists
+            if (!templateRow) {
+                console.error('Template subject row not found.');
+                return;
+            }
+            // Create a deep clone of the template row
+            const newRow = templateRow.cloneNode(true);
+            // Clear the input values in the new row
+            newRow.querySelectorAll('input').forEach(input => input.value = '');
+            // Append the new row to the subjects container
+            subjectsContainer.appendChild(newRow);
+        }
+
+        /**
+         * Removes a specific subject row from the DOM.
+         * @param {HTMLElement} button - The "Remove" button that was clicked.
+         */
+        function removeSubjectRow(button) {
+            // Find the parent element of the button, which is the subject row
+            const rowToRemove = button.closest('.subject-row');
+            // Remove the row from its parent container
+            if (rowToRemove) {
+                rowToRemove.remove();
+            }
+        }
+
+        /**
+         * Calculates the weighted average percentage and converts it to a GPA.
+         */
+        function calculateAverageAndGPA() {
+            // Get all subject rows currently in the container
+            const subjectRows = subjectsContainer.querySelectorAll('.subject-row');
+            let totalWeightedSum = 0;
+            let totalCreditHours = 0;
+            let isValid = true;
+
+            // Loop through each subject row to get percentages and CHR
+            subjectRows.forEach(row => {
+                // Get the input elements for percentage and CHR
+                const percentageInput = row.querySelector('.percentage-input');
+                const chrInput = row.querySelector('.chr-input');
+
+                // Parse the input values as floats
+                const percentage = parseFloat(percentageInput.value);
+                const chr = parseFloat(chrInput.value);
+
+                // Basic validation: ensure values are numbers and within the new range
+                if (isNaN(percentage) || isNaN(chr) || percentage < 50 || percentage > 100 || chr <= 0) {
+                    isValid = false;
+                    return; // Exit the forEach loop
+                }
+
+                // Apply the weighted average calculation formula
+                totalWeightedSum += percentage * chr;
+                totalCreditHours += chr;
+            });
+
+            // If validation failed, show an error message and stop.
+            if (!isValid) {
+                percentageResult.textContent = 'Error';
+                gpaResult.textContent = 'Error';
+                percentageResult.classList.remove('text-blue-700');
+                gpaResult.classList.remove('text-blue-700');
+                percentageResult.classList.add('text-red-500');
+                gpaResult.classList.add('text-red-500');
+                resultArea.classList.remove('hidden');
+                resultArea.classList.remove('bg-blue-100');
+                resultArea.classList.add('bg-red-100');
+                return;
+            }
+
+            // Calculate the final average percentage
+            const averagePercentage = totalCreditHours > 0 ? (totalWeightedSum / totalCreditHours).toFixed(2) : '0.00';
+
+            // Convert the percentage to a GPA. This is a common linear conversion formula:
+            // (Percentage - Minimum Pass Percentage) / 12.5
+            // With a minimum pass percentage of 50%, this makes 50% = 0.0 and 100% = 4.0.
+            const gpa = totalCreditHours > 0 ? ((parseFloat(averagePercentage) - 50) / 12.5).toFixed(2) : '0.00';
+
+            // Display the results
+            percentageResult.textContent = `${averagePercentage}%`;
+            gpaResult.textContent = gpa;
+
+            percentageResult.classList.remove('text-red-500');
+            gpaResult.classList.remove('text-red-500');
+            percentageResult.classList.add('text-blue-700');
+            gpaResult.classList.add('text-blue-700');
+            resultArea.classList.remove('hidden');
+            resultArea.classList.remove('bg-red-100');
+            resultArea.classList.add('bg-blue-100');
+        }
+
+        // Add event listeners to the buttons
+        addSubjectBtn.addEventListener('click', addSubjectRow);
+        calculateBtn.addEventListener('click', calculateAverageAndGPA);
+
+        // Add the initial subject row when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // The first row is already in the HTML, so no need to add a new one.
+        });
+    </script>
+</body>
+</html>
